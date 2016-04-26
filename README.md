@@ -135,3 +135,14 @@ That produces:
  ("y",35 % 26), -- for the system
  ("s0",2605 % 26),("s1",(-85) % 13),("s2",0 % 1),("s3",0 % 1)]
 ```
+
+## Misc
+
+Included in this repo are two Matlab files.
+The first plots all constraints onto a 2D plane.
+This is useful if you'd like to visualize the 
+system of equations. The second matlab sourcefile
+containts the linear system encoded in standard form
+using matrices and vectors. Usually LP in standard form
+are written as maximization problem, which explains
+certain transformations.
