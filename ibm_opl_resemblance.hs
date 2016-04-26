@@ -234,11 +234,29 @@ eval_expression env (ea `Gt` eb) =
             (Right x) -> e
         (Right _) -> e
 
+--
+-- Does conversions necessary for usage with simplexPrimal
+-- from the package Linear.Simplex.Primal
+-- 
+solve :: [Either OplType Ineq] -> [(String, Rational)]
+solve list = 
+    let constraints = map getRight $ filter isIneq list
+        (Odvar objective) = (map getLeft $ filter (not . isIneq) list) !! 0
+        stdConstraints = standardForm <$> constraints
+        stdObj = standardForm $ (EVar "M" .==. objective)
+    in simplexPrimal stdObj stdConstraints
+    where isIneq (Right x) = True
+          isIneq (Left x) = False
+          getRight (Right x) = x
+          getRight _ = error "Nonsense usage!"
+          getLeft (Left x) = x
+          getLeft _ = error "Nonsense usage!"
+
 --------------
 -- Examples --
 --------------
-test_complete :: [Either OplType Ineq]
-test_complete = 
+opl_refinery :: [Either OplType Ineq]
+opl_refinery = 
     let rawMaterial = 205
         demand = [59, 12, 13]
         processes = [1, 2] 
@@ -248,21 +266,21 @@ test_complete =
         cost = [300, 400]
     in
         eval_expression new_env $
-            Minimize 
-              (Sum 
-                ("p" `In` processes) 
-                ((Id "p" :+ Nil) :? cost :*
-                 (Id "p" :+ Nil) :? run)) :|
-            Constraints 
-              (Sum ("p" `In` processes)
-                ((Id "p" :+ Nil) :? consumption :*
-                 (Id "p" :+ Nil) :? run) 
-                 `Lt` EDouble rawMaterial :|
-               Forall ("q" `In` [1,2,3])
-                 (Sum ("p" `In` processes)
-                   ((Id "q" :+ Id "p" :+ Nil) :? production :*
-                    (Id "p" :+ Nil) :? run) 
-                    `Gt` (Id "q" :+ Nil) :? demand))
+          Minimize 
+            (Sum 
+              ("p" `In` processes) 
+              ((Id "p" :+ Nil) :? cost :*
+               (Id "p" :+ Nil) :? run)) :|
+          Constraints 
+            (Sum ("p" `In` processes)
+              ((Id "p" :+ Nil) :? consumption :*
+               (Id "p" :+ Nil) :? run) 
+               `Lt` EDouble rawMaterial :|
+             Forall ("q" `In` [1,2,3])
+               (Sum ("p" `In` processes)
+                 ((Id "q" :+ Id "p" :+ Nil) :? production :*
+                  (Id "p" :+ Nil) :? run) 
+                  `Gt` (Id "q" :+ Nil) :? demand))
 
 test_tree :: Expression
 test_tree = 
