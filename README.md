@@ -2,8 +2,8 @@
 
 ## Background
 OPL is a domain specific language for linear programming.
-As you might now, LP is used for a wide range of optimization
-problems. The following snippet shows a smaple of IBM's OPL
+As you might know, LP is used for a wide range of optimization
+problems. The following snippet shows a sample of IBM's OPL:
 
 ```
 float rawMaterial                     = 205;
@@ -25,8 +25,8 @@ constraints {
 }
 ```
 
-The example describes a system of inequality equations which
-then can be solved by using an appropriate algorithm such as
+It describes a system of constraints which
+could be solved by using an appropriate algorithm such as
 Simplex Primal.
 
 
