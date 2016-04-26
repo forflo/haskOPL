@@ -90,7 +90,7 @@ which is (a currently somewhat broken) implementation of the simplex
 algorithm.
 
 The above haskell code would generate the following output
-which in turn could be fed into the simplexPrimal Funktion.
+which in turn could be fed into the simplexPrimal Funktion:
 
 ``` Haskell
 [Left (Odvar (EAdd (ECoeff (EVar "y") (400 % 1)) (ECoeff (EVar "x") (300 % 1)))),
@@ -118,4 +118,20 @@ which in turn could be fed into the simplexPrimal Funktion.
         LinVar {varName = "y", varCoeff = 2 % 1},
         LinVar {varName = "x", varCoeff = 4 % 1}], 
         exprConst = 0 % 1}))]
+```
+
+To actually solve the equation system you can use the
+pre-coded function called solve.
+
+``` Haskell
+solve $ opl_refinery
+```
+
+That produces:
+
+``` Haskell
+[("M",17050 % 13),
+ ("x",67 % 26), -- solution
+ ("y",35 % 26), -- for the system
+ ("s0",2605 % 26),("s1",(-85) % 13),("s2",0 % 1),("s3",0 % 1)]
 ```
