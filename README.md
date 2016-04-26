@@ -30,7 +30,7 @@ could be solved by using an appropriate algorithm such as
 Simplex Primal.
 
 
-## What is HaskPL
+## What is HaskOPL
 HaskPL is an educational attempt to design and implement
 a EDSL in Haskell loosely resembling IBM's OPL syntax
 and semantics.
