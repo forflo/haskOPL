@@ -19,7 +19,7 @@ data Vector (peanoNum :: Peano) someType where
     (:+) :: someType 
         -> Vector num someType 
         -> Vector (Successor num) someType
-infixr 5 :+ 
+infixr 9 :+ 
 
 data IterateCons peanoNum cons t where
     ZeroCons :: t -> IterateCons Zero cons t
@@ -35,6 +35,7 @@ type family Iterate (peanoNum :: Peano) constructor someType where
     Iterate (Successor pn) cons typ = 
         cons (Iterate pn cons typ)
 
+-- Data type representing the EDSL's syntax tree
 data Expression where
     Constraints :: Expression -> Expression
     Minimize :: Expression -> Expression
@@ -43,8 +44,8 @@ data Expression where
     Sum :: Iteration -> Expression -> Expression
     Forall :: Iteration -> Expression -> Expression
     Id :: OplType  -> Expression
-    Lt :: Expression -> Expression -> Expression
-    Gt :: Expression -> Expression -> Expression
+    (:<=:) :: Expression -> Expression -> Expression
+    (:>=:) :: Expression -> Expression -> Expression
     (:|) :: Expression -> Expression -> Expression
     (:?) :: Vector n Expression 
         -> Iterate (n) [] OplType 
@@ -52,8 +53,8 @@ data Expression where
     (:*) :: Expression -> Expression -> Expression
 infixl 4 :|
 infixl 5 `Sum`
-infixr 6 `Lt`
-infixr 6 `Gt`
+infixr 6 :<=: 
+infixr 6 :>=:
 infixr 7 :*
 infixr 8 :?
 
@@ -67,6 +68,18 @@ data OplType =
     | ONumber Rational 
     | Odvar LinAst
     deriving (Eq, Show)
+
+-- Type class instances to get 
+-- multiplication without the 
+-- ugly colon based value construktor
+instance Num Expression where
+    fromInteger = undefined
+    negate = undefined
+    abs = undefined
+    signum = undefined
+    expA + expB = undefined
+    expA - expB = undefined
+    expA * expB = expA :* expB
 
 instance IsString OplType where
     fromString string = OString string
@@ -100,8 +113,8 @@ instance Show Expression where
     show (EString s) = "(EString " ++ show s ++ ")"
     show (i `Sum` e) = "(" ++ show i ++ " `Sum` " ++ show e ++ ")"
     show (EDouble f) = "(EFloat " ++ show f ++ ")"
-    show (Lt ea eb) = "(" ++ show ea ++ " `Lt` " ++ show eb ++ ")"
-    show (Gt ea eb) = "(" ++ show ea ++ " `Gt` " ++ show eb ++ ")"
+    show (ea :<=: eb) = "(" ++ show ea ++ " :<=: " ++ show eb ++ ")"
+    show (ea :>=: eb) = "(" ++ show ea ++ " :>=: " ++ show eb ++ ")"
     show (ea :* eb) = "(" ++ show ea ++ " :* " ++ show eb ++ ")"
     show (Id s) = "(Id " ++ show s ++ ")"
     show (vec :? dbl) = "(" ++ show vec ++ " :? " ++ go vec dbl ++ ")"
@@ -125,6 +138,10 @@ update_env mapping dat id =
     \x -> if x == id 
              then dat 
              else mapping x
+
+-- Convenience function
+dvar :: String -> OplType
+dvar = Odvar . EVar
 
 -- 
 -- Valuation functions
@@ -165,10 +182,10 @@ eval_expression env (Sum (id `In` list) exp) =
         evaler = map (eval_expression . makeNewEnv) list
         expres = replicate len exp
         zips = concat $ zipWith ($) evaler expres
-    in  [foldr (folder) (head zips) (tail zips)]
-    where folder (Left (Odvar astA)) (Left (Odvar astB)) = 
+    in  [foldr fn (head zips) (tail zips)]
+    where fn (Left (Odvar astA)) (Left (Odvar astB)) = 
               Left (Odvar $ astA .+. astB)
-          folder _ _ = error "[folder] Wrong types!"
+          fn _ _ = error "[eval_expression] Wrong types!"
 
 eval_expression env (vec :? arr) =  
     [Left (go vec arr)]
@@ -177,71 +194,72 @@ eval_expression env (vec :? arr) =
               -> OplType
           go Nil val = val
           go (index :+ rest) list = 
-              let (ONumber idx) = case (index) of
-                      (EString (OString string)) -> env string
-                      (Id (OString string)) -> env string
+              let ONumber idx = case index of
+                      EString (OString string) -> env string
+                      Id (OString string) -> env string
                       _ -> error "False index type!"
               in  (map (go rest) list) !! 
                   (fromIntegral (numerator idx) - 1)
     
 eval_expression env (ea :* eb) = 
-    let (eva:_) = eval_expression env ea
-        (evb:_) = eval_expression env eb
+    let eva:_ = eval_expression env ea
+        evb:_ = eval_expression env eb
         e = error $ "Type error in: " ++ 
             show ea ++ 
             " :* " ++ 
             show eb
-    in case (eva) of
-        (Left (Odvar opl)) -> case (evb) of
-            (Left (ONumber coeff)) -> 
+    in case eva of
+        Left (Odvar opl) -> case evb of
+            Left (ONumber coeff) -> 
                 [Left (Odvar (opl .*. coeff))]
-            (Right _) -> e
-        (Left (ONumber coeff)) -> case (evb) of
-            (Left (Odvar opl)) -> 
+            Right _ -> e
+        Left (ONumber coeff) -> case evb of
+            Left (Odvar opl) -> 
                 [Left (Odvar (coeff.*. opl))]
-            (Right _) -> e
-        (Right _) -> e
+            Right _ -> e
+        Right _ -> e
 
-eval_expression env (ea `Lt` eb) =
-    let (eva:_) = eval_expression env ea
-        (evb:_) = eval_expression env eb
+eval_expression env (ea :<=: eb) =
+    let eva:_ = eval_expression env ea
+        evb:_ = eval_expression env eb
         e = error $ "Type error in: " ++ 
             show ea ++ 
-            " `Lt` " ++ 
+            " :<=: " ++ 
             show eb
-    in case (eva) of
-        (Left (Odvar oplA)) -> case (evb) of
-            (Left (ONumber coeff)) -> 
+    in case eva of
+        Left (Odvar oplA) -> case evb of
+            Left (ONumber coeff) -> 
                 [Right (oplA .<=. ELit coeff)]
-            (Left (Odvar oplB)) -> 
+            Left (Odvar oplB) -> 
                 [Right (oplA .<=. oplB)]
             _ -> e
         _ -> e
 
-eval_expression env (ea `Gt` eb) =
-    let (eva:_) = eval_expression env ea
-        (evb:_) = eval_expression env eb
+eval_expression env (ea :>=: eb) =
+    let eva:_ = eval_expression env ea
+        evb:_ = eval_expression env eb
         e = error $ "Type error in: " ++ 
             show ea ++ 
-            " `Gt` " ++ 
+            " :>=: " ++ 
             show eb
     in case (eva) of
-        (Left (Odvar oplA)) -> case (evb) of
-            (Left (ONumber coeff)) 
+        Left (Odvar oplA) -> case evb of
+            Left (ONumber coeff) 
                 -> [Right (oplA .=>. ELit coeff)]
-            (Left (Odvar oplB)) 
+            Left (Odvar oplB) 
                 -> [Right (oplA .=>. oplB)]
-            (Right x) -> e
-        (Right _) -> e
+            Right x -> e
+        Right _ -> e
 
 --
 -- Does conversions necessary for usage with simplexPrimal
--- from the package Linear.Simplex.Primal
+-- from the package Linear.Simplex.Primal and outputs a
+-- possible solution of the equation system.
 -- 
 solve :: [Either OplType Ineq] -> [(String, Rational)]
 solve list = 
     let constraints = map getRight $ filter isIneq list
-        (Odvar objective) = (map getLeft $ filter (not . isIneq) list) !! 0
+        Odvar objective = (map getLeft $ filter (not . isIneq) list) !! 0
         stdConstraints = standardForm <$> constraints
         stdObj = standardForm $ (EVar "M" .==. objective)
     in simplexPrimal stdObj stdConstraints
@@ -255,6 +273,7 @@ solve list =
 --------------
 -- Examples --
 --------------
+-- For evaluation use ghci> solve $ opl_refinery
 opl_refinery :: [Either OplType Ineq]
 opl_refinery = 
     let rawMaterial = 205
@@ -262,26 +281,32 @@ opl_refinery =
         processes = [1, 2] 
         production = [[12,16], [1,7], [4,2]]
         consumption = [25, 30]
-        run = [Odvar $ EVar "x", Odvar $ EVar "y"]
-        cost = [300, 400]
+        run = [dvar "x", dvar "y"]
+        cost = [340, 400]
     in
         eval_expression new_env $
           Minimize 
             (Sum 
               ("p" `In` processes) 
-              ((Id "p" :+ Nil) :? cost :*
+              (Id "p" :+ Nil :? cost *
                (Id "p" :+ Nil) :? run)) :|
           Constraints 
             (Sum ("p" `In` processes)
-              ((Id "p" :+ Nil) :? consumption :*
+              ((Id "p" :+ Nil) :? consumption *
                (Id "p" :+ Nil) :? run) 
-               `Lt` EDouble rawMaterial :|
+               :<=: EDouble rawMaterial :|
              Forall ("q" `In` [1,2,3])
                (Sum ("p" `In` processes)
-                 ((Id "q" :+ Id "p" :+ Nil) :? production :*
+                 ((Id "q" :+ Id "p" :+ Nil) :? production *
                   (Id "p" :+ Nil) :? run) 
-                  `Gt` (Id "q" :+ Nil) :? demand))
+                  :>=: (Id "q" :+ Nil) :? demand))
 
+--
+-- enter test_tree in ghci to
+-- automatically convert the resulting
+-- expression to string. On every value entered
+-- at the ghci prompt, show get's called with that value
+--
 test_tree :: Expression
 test_tree = 
     let rawMaterial = 205
@@ -289,23 +314,26 @@ test_tree =
         processes = [1, 2] 
         production = [[12,16], [1,7], [4,2]]
         consumption = [25, 30]
-        run = [Odvar $ EVar "x", Odvar $ EVar "y"]
+        run = [dvar "x", dvar "y"]
         cost = [300, 400]
     in
         Minimize 
-            (Sum ("p" `In` processes) 
-                 ((Id "p" :+ Nil) :? cost :*
-                  (Id "p" :+ Nil) :? run)) :|
+          (Sum ("p" `In` processes) 
+            ((Id "p" :+ Nil) :? cost *
+             (Id "p" :+ Nil) :? run)) :|
         Constraints 
-            (Sum ("p" `In` processes)
-                 ((Id "p" :+ Nil) :? consumption :*
-                  (Id "p" :+ Nil) :? run `Lt` EDouble rawMaterial) :|
-             Forall ("q" `In` [1,2,3])
-                    (Sum ("p" `In` processes)
-                         ((Id "q" :+ Id "p" :+ Nil) :? production :*
-                          (Id "p" :+ Nil) :? run `Gt` 
-                          (Id "q" :+ Nil) :? demand)))
+          (Sum ("p" `In` processes)
+            ((Id "p" :+ Nil) :? consumption *
+             (Id "p" :+ Nil) :? run :<=: EDouble rawMaterial) :|
+           Forall ("q" `In` [1,2,3])
+             (Sum ("p" `In` processes)
+               ((Id "q" :+ Id "p" :+ Nil) :? production *
+                (Id "p" :+ Nil) :? run :>=: 
+                (Id "q" :+ Nil) :? demand)))
 
+--
+-- Demo of HaskOPL forall to inequality conversion
+--
 eval_forall :: [Either OplType Ineq]
 eval_forall = 
     let processes = [1, 2] 
@@ -313,20 +341,25 @@ eval_forall =
         products = ["light", "medium", "heavy"]
         production = [[12,16], [1,7], [4,2]]
         cost = [300, 400]
-        run = [Odvar $ EVar "x", Odvar $ EVar "y"]
-        s = Forall ("q" `In` [1,2,3])
-                   (Sum ("p" `In` processes)
-                        ((Id "q" :+ Id "p" :+ Nil) :? production :* (Id "p" :+ Nil) :? run) 
-                         `Gt` (Id "q" :+ Nil) :? demand)
-    in eval_expression new_env s
+        run = [dvar "x", dvar "y"]
+        forall = 
+          Forall ("q" `In` [1,2,3])
+            (Sum ("p" `In` processes)
+              ((Id "q" :+ Id "p" :+ Nil) :? production * 
+               (Id "p" :+ Nil) :? run) 
+               :>=: (Id "q" :+ Nil) :? demand)
+    in eval_expression new_env forall
 
+-- 
+-- Demo of HaskOPL sum to inequality conversion
 eval_test_sum :: [Either OplType Ineq]
 eval_test_sum =
     let processes = [1, 2, 3, 4] 
         rawMaterial = 205
         consumption = [25, 30, 35, 40]
-        run = [Odvar $ EVar "x", Odvar $ EVar "y", Odvar $ EVar "z", Odvar $ EVar "a"]
-        exp = (Sum ("p" `In` processes)
-                 ((Id "p" :+ Nil) :? consumption :*
-                  (Id "p" :+ Nil) :? run)) 
+        run = [dvar "x", dvar "y", dvar "z", dvar "a"]
+        exp = 
+          (Sum ("p" `In` processes)
+            ((Id "p" :+ Nil) :? consumption *
+             (Id "p" :+ Nil) :? run)) 
     in eval_expression new_env exp
