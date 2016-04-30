@@ -3,6 +3,12 @@
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
 --
 -- (c) Florian Mayer, 2016
+--
+----
+-- Use $ ghci -XOverloadedStrings
+--       ghci> :l ibm_opl_resemblance.hs
+-- for testing
+--
 
 
 {-# LANGUAGE GADTs #-}
