@@ -27,7 +27,7 @@ constraints {
 
 It describes a system of constraints which
 could be solved by using an appropriate algorithm such as
-the Simplex algorithm (see [3](https://en.wikipedia.org/wiki/Simplex_algorithm)).
+the Simplex algorithm (see [[3]](https://en.wikipedia.org/wiki/Simplex_algorithm)).
 
 
 ## What is HaskOPL
