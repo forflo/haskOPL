@@ -1,9 +1,9 @@
 # HaskOPL
 
 ## Background
-OPL is a domain specific language for linear programming.
+OPL is a domain specific language for linear programming (see [[1]](https://www-01.ibm.com/software/commerce/optimization/modeling/)).
 As you might know, LP is used for a wide range of optimization
-problems. The following snippet shows a sample of IBM's OPL:
+problems (visit [[2]](https://en.wikipedia.org/wiki/Linear_programming)). The following snippet shows a sample of IBM's OPL:
 
 ```
 float rawMaterial                     = 205;
