@@ -27,12 +27,12 @@ constraints {
 
 It describes a system of constraints which
 could be solved by using an appropriate algorithm such as
-Simplex Primal.
+the Simplex algorithm (see [3](https://en.wikipedia.org/wiki/Simplex_algorithm)).
 
 
 ## What is HaskOPL
-HaskPL is an educational attempt to design and implement
-a EDSL in Haskell loosely resembling IBM's OPL syntax
+HaskOPL is an educational attempt to design and implement
+an EDSL in Haskell loosely resembling IBM's OPL syntax
 and semantics.
 
 ## Examples
@@ -86,10 +86,10 @@ HaskOPL transformes the own EDSL into another EDSL
 defined in the package Linear.Grammar from hackage.
 The latter DSL is used to represent linear inequalities.
 Furthermore it is used as input for Linear.Simplex.Primal
-which is (a currently somewhat broken) implementation of the simplex
-algorithm.
+which is (a currently somewhat broken) implementation 
+of the Simplex algorithm.
 
-The above haskell code would generate the following output
+The haskell code above would generate the following output,
 which in turn could be fed into the simplexPrimal Funktion:
 
 ``` Haskell
